@@ -39,7 +39,12 @@ impl Pecker {
 }
 
 fn main() {
-    let input = vec![Item::new(230, 200, 1), Item::new(310, 220, 1)];
+    let input = vec![
+        Item::new(720, 200, 1),
+        Item::new(310, 220, 1),
+        Item::new(1500, 300, 1),
+        Item::new(800, 200, 1),
+    ];
     let mut pecker = Pecker::new(input);
     pecker.run();
     dbg!(pecker.sheets);
