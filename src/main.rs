@@ -1,5 +1,4 @@
-#![feature(let_chains)]
-#![feature(iter_map_windows)]
+#![feature(let_chains, if_let_guard, iter_map_windows)]
 #![deny(clippy::pedantic)]
 #![deny(rust_2018_idioms)]
 #![allow(clippy::missing_panics_doc)]
@@ -40,10 +39,11 @@ impl Pecker {
 
 fn main() {
     let input = vec![
-        Item::new(720, 200, 1),
-        Item::new(310, 220, 1),
-        Item::new(1500, 300, 1),
-        Item::new(800, 200, 1),
+        Item::new(1190, 87, 1),
+        Item::new(300, 87, 1),
+        Item::new(1262, 267, 1),
+        Item::new(367, 1262, 1),
+        Item::new(362, 1262, 1),
     ];
     let mut pecker = Pecker::new(input);
     pecker.run();

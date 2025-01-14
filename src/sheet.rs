@@ -27,6 +27,7 @@ pub const fn width_bit_length() -> u32 {
 #[derive(Clone, Debug, Default)]
 pub struct Sheet {
     entries: BTreeMap<u32, PlacedItem>,
+    last_row: u32,
 }
 
 impl Sheet {
@@ -54,13 +55,14 @@ impl Sheet {
                 .fold(
                     None,
                     |mut region, ((right_code, right_item), (left_code, left_item))| {
-                        dbg!(&left_item, &right_item);
                         region = self.find_region_between_items(item, left_item, right_item);
                         region
                     },
                 )
             else {
-                return self.find_region_at_end(item);
+                return self.find_region_at_end(item).inspect(|pos| {
+                    self.last_row = pos.position.y;
+                });
             };
 
             Some(region)
@@ -70,15 +72,30 @@ impl Sheet {
     }
 
     pub fn find_region_at_end(&self, item: &mut Item) -> Option<PlacedItem> {
-        let (_, last) = self.entries.iter().last().unwrap();
-        let start = last.next_possible_column();
-        if self.check_item_with_boundary(&start, item).is_some() {
-            Some(PlacedItem::new(item.to_owned(), start))
-        } else {
-            let start = last.next_possible_row();
-            self.check_item_with_boundary(&start, item)
-                .map(|_| PlacedItem::new(item.to_owned(), start))
-        }
+        let last_row = self.last_row;
+        let mut iter = self
+            .entries
+            .iter()
+            .filter(|(_, item)| item.position.y == last_row)
+            .peekable();
+        iter.clone().find_map(|(_, last)| {
+            let start = last.next_possible_column();
+            let next = iter.peek();
+            match (self.check_item_with_boundary(&start, item), next) {
+                (Some(_), None) => Some(PlacedItem::new(item.to_owned(), start)),
+                (Some(_), Some((_, n)))
+                    if let Some(Orientation::Normalised | Orientation::Flipped) =
+                        self.check_item_with_neighbour(&start, item, n) =>
+                {
+                    Some(PlacedItem::new(item.to_owned(), start))
+                }
+                (Some(_), Some(_)) | (None, _) => {
+                    let start = last.next_possible_row();
+                    self.check_item_with_boundary(&start, item)
+                        .map(|_| PlacedItem::new(item.to_owned(), start))
+                }
+            }
+        })
     }
 
     pub fn find_adjacent_to_first_item(&self, item: &mut Item) -> Option<PlacedItem> {
@@ -99,7 +116,6 @@ impl Sheet {
         left: &PlacedItem,
         right: &PlacedItem,
     ) -> Option<PlacedItem> {
-        dbg!(&left, &right);
         let start = left.next_possible_column();
         match (
             self.check_item_with_boundary(&start, item),
@@ -175,7 +191,7 @@ impl Sheet {
         let width_bit = SHEET_WIDTH.next_power_of_two() - 1;
         let height_bit = (SHEET_HEIGHT.next_power_of_two() - 1) << width_bit_length();
 
-        dbg!(column_end.saturating_sub(binary & width_bit)) > item.width
+        column_end.saturating_sub(binary & width_bit) > item.width
             && (row_end.saturating_sub((binary & height_bit) >> width_bit_length())) > item.height
     }
 
@@ -188,12 +204,7 @@ impl Sheet {
     ) -> bool {
         let binary = start.binary();
         let right_start = right.position.binary();
-        dbg!(binary, right_start);
-        if right_start - binary < item.width {
-            false
-        } else {
-            true
-        }
+        right_start.saturating_sub(binary) > item.width
     }
 }
 
