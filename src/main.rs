@@ -12,7 +12,6 @@ struct Pecker {
     sheets: Vec<Sheet>,
     input: Vec<Item>,
     cur: usize,
-    last: usize,
 }
 
 impl Pecker {
@@ -21,17 +20,23 @@ impl Pecker {
             sheets: vec![Sheet::default()],
             input,
             cur: 0,
-            last: 0,
         }
     }
+
     pub fn run(&mut self) {
         self.input.iter_mut().for_each(|item| {
-            let cur = self.cur;
-            while self.sheets[cur].add_item(item).is_none() {
-                if cur == self.last {
-                    self.last += 1;
+            loop {
+                match self.sheets.get_mut(self.cur).map(|sh| sh.add_item(item)) {
+                    Some(Some(())) => break,
+                    Some(None) => {
+                        self.cur += 1;
+
+                        self.sheets.push(Sheet::default());
+                    }
+                    None => {
+                        self.cur += 1;
+                    }
                 }
-                self.cur += 1;
             }
         });
     }
@@ -40,6 +45,15 @@ impl Pecker {
 fn main() {
     let input = vec![
         Item::new(1190, 87, 1),
+        Item::new(300, 87, 1),
+        Item::new(1262, 267, 1),
+        Item::new(367, 1262, 1),
+        Item::new(362, 1262, 1),
+        Item::new(1190, 87, 1),
+        Item::new(300, 87, 1),
+        Item::new(1262, 267, 1),
+        Item::new(367, 1262, 1),
+        Item::new(362, 1262, 1),
         Item::new(300, 87, 1),
         Item::new(1262, 267, 1),
         Item::new(367, 1262, 1),

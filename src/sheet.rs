@@ -41,7 +41,7 @@ impl Sheet {
                 .insert(placed_item.position.binary(), placed_item);
             Some(())
         } else {
-            todo!()
+            None
         }
     }
 
@@ -52,13 +52,9 @@ impl Sheet {
             let Some(region) = iter
                 .cartesian_product(y_pair)
                 .filter(|((first, _), (second, _))| first > second)
-                .fold(
-                    None,
-                    |mut region, ((right_code, right_item), (left_code, left_item))| {
-                        region = self.find_region_between_items(item, left_item, right_item);
-                        region
-                    },
-                )
+                .find_map(|((_, right_item), (_, left_item))| {
+                    self.find_region_between_items(item, left_item, right_item)
+                })
             else {
                 return self.find_region_at_end(item).inspect(|pos| {
                     self.last_row = pos.position.y;
