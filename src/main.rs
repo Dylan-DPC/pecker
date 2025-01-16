@@ -25,39 +25,30 @@ impl Pecker {
 
     pub fn run(&mut self) {
         self.input.iter_mut().for_each(|item| {
-            loop {
-                match self.sheets.get_mut(self.cur).map(|sh| sh.add_item(item)) {
-                    Some(Some(())) => break,
-                    Some(None) => {
-                        self.cur += 1;
+            (0..item.count).rev().enumerate().for_each(|_| {
+                loop {
+                    match self.sheets.get_mut(self.cur).map(|sh| sh.add_item(item)) {
+                        Some(Some(())) => break,
+                        Some(None) => {
+                            self.cur += 1;
 
-                        self.sheets.push(Sheet::default());
-                    }
-                    None => {
-                        self.cur += 1;
+                            self.sheets.push(Sheet::default());
+                        }
+                        None => {
+                            self.cur += 1;
+                        }
                     }
                 }
-            }
+            });
         });
     }
 }
 
 fn main() {
     let input = vec![
-        Item::new(1190, 87, 1),
-        Item::new(300, 87, 1),
-        Item::new(1262, 267, 1),
-        Item::new(367, 1262, 1),
-        Item::new(362, 1262, 1),
-        Item::new(1190, 87, 1),
-        Item::new(300, 87, 1),
-        Item::new(1262, 267, 1),
-        Item::new(367, 1262, 1),
-        Item::new(362, 1262, 1),
-        Item::new(300, 87, 1),
-        Item::new(1262, 267, 1),
-        Item::new(367, 1262, 1),
-        Item::new(362, 1262, 1),
+        Item::new(950, 1830, 2),
+        Item::new(730, 300, 1),
+        Item::new(550, 300, 4),
     ];
     let mut pecker = Pecker::new(input);
     pecker.run();

@@ -208,7 +208,7 @@ impl Sheet {
 pub struct Item {
     width: u32,
     height: u32,
-    count: u8,
+    pub count: u8,
 }
 
 impl Item {
