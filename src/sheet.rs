@@ -36,7 +36,7 @@ impl Sheet {
             self.entries
                 .insert(0, PlacedItem::place_on_empty_sheet(item));
             Some(())
-        } else if let Some(placed_item) = self.find_region(item) {
+        } else if let Some(placed_item) = dbg!(self.find_region(item)) {
             self.entries
                 .insert(placed_item.position.binary(), placed_item);
             Some(())
@@ -49,19 +49,22 @@ impl Sheet {
         if self.entries.len() > 1 {
             let iter = self.entries.iter();
             let y_pair = iter.clone();
-            let Some(region) = iter
+
+            let mut possible_regions = iter
                 .cartesian_product(y_pair)
                 .filter(|((first, _), (second, _))| first > second)
-                .find_map(|((_, right_item), (_, left_item))| {
+                .map(|((_, right_item), (_, left_item))| {
                     self.find_region_between_items(item, left_item, right_item)
                 })
-            else {
-                return self.find_region_at_end(item).inspect(|pos| {
-                    self.last_row = pos.position.y;
-                });
-            };
+                .collect::<Vec<Option<_>>>();
 
-            Some(region)
+            if possible_regions.is_empty() || possible_regions.contains(&None) {
+                self.find_region_at_end(item).inspect(|pos| {
+                    self.last_row = pos.position.y;
+                })
+            } else {
+                possible_regions.pop().unwrap()
+            }
         } else {
             self.find_adjacent_to_first_item(item)
         }
@@ -200,11 +203,12 @@ impl Sheet {
     ) -> bool {
         let binary = start.binary();
         let right_start = right.position.binary();
+        dbg!(binary, right_start);
         right_start.saturating_sub(binary) > item.width
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Item {
     width: u32,
     height: u32,
@@ -235,7 +239,7 @@ impl Item {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct PlacedItem {
     item: Item,
     position: Position,
@@ -265,7 +269,7 @@ impl PlacedItem {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Position {
     x: u32,
     y: u32,
