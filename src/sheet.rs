@@ -28,6 +28,7 @@ pub const fn width_bit_length() -> u32 {
 #[derive(Clone, Debug, Default)]
 pub struct Sheet {
     pub entries: BTreeMap<u32, PlacedItem>,
+    balanced: Cell<bool>,
     last_row: Cell<u32>,
 }
 
@@ -46,19 +47,28 @@ impl Sheet {
         }
     }
 
+    pub fn remove_item_by_binary(&mut self, item: &Item) {
+        self.balanced.set(true);
+        self.entries.retain(|_, placed| placed.item != *item);
+    }
+
     pub fn find_region(&self, item: &Item) -> Option<PlacedItem> {
         if self.entries.len() > 1 {
             let iter = self.entries.iter();
             let y_pair = iter.clone();
 
-            let mut possible_regions = iter
-                .cartesian_product(y_pair)
-                .filter(|((first, _), (second, _))| first > second)
-                .map(|((_, right_item), (_, left_item))| {
-                    self.find_region_between_items(item, left_item, right_item)
-                })
-                .collect::<Vec<Option<_>>>();
-
+            let mut possible_regions = if self.balanced.get()
+                && let Some(regions) = self.find_regions_post_balanced(item)
+            {
+                vec![Some(regions)]
+            } else {
+                iter.cartesian_product(y_pair)
+                    .filter(|((first, _), (second, _))| first > second)
+                    .map(|((_, right_item), (_, left_item))| {
+                        self.find_region_between_items(item, left_item, right_item)
+                    })
+                    .collect::<Vec<Option<_>>>()
+            };
             if possible_regions.is_empty() || possible_regions.contains(&None) {
                 self.find_region_at_end(item).inspect(|pos| {
                     self.last_row.set(pos.position.y);
@@ -117,6 +127,15 @@ impl Sheet {
         right: &PlacedItem,
     ) -> Option<PlacedItem> {
         let start = left.next_possible_column();
+        self.check_item_is_valid(start, item, right)
+    }
+
+    pub fn check_item_is_valid(
+        &self,
+        start: Position,
+        item: &Item,
+        right: &PlacedItem,
+    ) -> Option<PlacedItem> {
         match (
             self.check_item_with_boundary(&start, item),
             self.check_item_with_neighbour(&start, item, right),
@@ -191,9 +210,9 @@ impl Sheet {
         let width_bit = SHEET_WIDTH.next_power_of_two() - 1;
         let height_bit = (SHEET_HEIGHT.next_power_of_two() - 1) << width_bit_length();
 
-        column_end.saturating_sub(binary & width_bit) > item.width.get()
-            && (row_end.saturating_sub((binary & height_bit) >> width_bit_length()))
-                > item.height.get()
+        column_end.saturating_sub(binary & width_bit) >= (item.width.get() - 1)
+            && row_end.saturating_sub((binary & height_bit) >> width_bit_length())
+                >= (item.height.get() - 1)
     }
 
     #[must_use]
@@ -206,6 +225,32 @@ impl Sheet {
         let binary = start.binary();
         let right_start = right.position.binary();
         right_start.saturating_sub(binary) > item.width.get()
+    }
+
+    pub fn find_regions_post_balanced(&self, item: &Item) -> Option<PlacedItem> {
+        if self.entries.contains_key(&0) {
+            None
+        } else {
+            let pos = Position::new(0, 0);
+            let (_, first) = self.entries.iter().next().unwrap();
+            self.check_item_is_valid(pos, item, first)
+                .inspect(|_| self.balanced.set(true))
+        }
+    }
+}
+
+impl std::fmt::Display for Sheet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.entries.iter().try_for_each(|(_, item)| {
+            writeln!(
+                f,
+                "({}, {}) @ ({}, {})",
+                item.item.height.get(),
+                item.item.width.get(),
+                item.position.x,
+                item.position.y
+            )
+        })
     }
 }
 
@@ -227,7 +272,7 @@ impl Item {
     }
 
     pub fn align_item(&self) {
-        if self.width < self.height {
+        if self.width > self.height {
             self.flip();
         }
     }
